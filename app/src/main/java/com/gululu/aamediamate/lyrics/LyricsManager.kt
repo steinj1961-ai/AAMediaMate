@@ -14,9 +14,28 @@ data class LyricLine(val timeSec: Float, val text: String)
 
 object LyricsManager {
     suspend fun getLyricsLrt(context: Context, title: String, artist: String, duration: String): String? = withContext(Dispatchers.IO) {
-        val cleanupRules = SettingsManager.getLyricsCleanupRules(context)
-        val (cleanedTitle, cleanedArtist) = LyricsCleanupManager.applyRules(title, artist, cleanupRules)
+        var searchTitle = title
+var searchArtist = artist
 
+if (title.equals("ROCK ANTENNE", ignoreCase = true)) {
+    val parts = artist.split(" - ", limit = 2)
+    if (parts.size == 2) {
+        searchArtist = parts[0].trim()
+        searchTitle = parts[1]
+            .replace(
+                Regex(
+                    """\s*-\s*ROCK ANTENNE(?:\s+Live)?\s*$""",
+                    RegexOption.IGNORE_CASE
+                ),
+                ""
+            )
+            .trim()
+    }
+}
+
+val cleanupRules = SettingsManager.getLyricsCleanupRules(context)
+val (cleanedTitle, cleanedArtist) =
+    LyricsCleanupManager.applyRules(searchTitle, searchArtist, cleanupRules)
         // Get enabled providers in order of priority
         val enabledProviders = SettingsManager.getEnabledProvidersInOrder(context)
         DiagnosticLogger.info(
