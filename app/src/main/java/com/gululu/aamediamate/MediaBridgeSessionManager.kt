@@ -92,6 +92,13 @@ object MediaBridgeSessionManager {
         updateFromMediaInfo(MediaInformationRetriever.refreshCurrentMediaInfo(ctx))
     }
 
+    private val rockAntenneRefreshRunnable = Runnable {
+        val ctx = context ?: return@Runnable
+        val info = currentMediaInfo ?: return@Runnable
+        if (!info.isPlaying || !info.appName.contains("ROCK ANTENNE", ignoreCase = true)) return@Runnable
+        updateFromMediaInfo(MediaInformationRetriever.refreshCurrentMediaInfo(ctx))
+    }
+
     fun init(context: Context) {
         if (mediaSession != null) return
 
@@ -175,6 +182,7 @@ object MediaBridgeSessionManager {
 
         mediaInfoListener?.invoke(normalizedInfo)
         scheduleEndOfMediaRefresh(normalizedInfo)
+        scheduleRockAntenneRefresh(normalizedInfo)
         MediaBridgeService.refreshBrowserData()
     }
 
@@ -326,9 +334,17 @@ object MediaBridgeSessionManager {
         mainHandler.postDelayed(endOfMediaRefreshRunnable, delayMs)
     }
 
+    private fun scheduleRockAntenneRefresh(info: MediaInfo) {
+        mainHandler.removeCallbacks(rockAntenneRefreshRunnable)
+        if (info.isPlaying && info.appName.contains("ROCK ANTENNE", ignoreCase = true)) {
+            mainHandler.postDelayed(rockAntenneRefreshRunnable, ROCK_ANTENNE_REFRESH_INTERVAL_MS)
+        }
+    }
+
     private fun cancelPendingMediaRefreshes() {
         mainHandler.removeCallbacks(sourceRefreshRunnable)
         mainHandler.removeCallbacks(endOfMediaRefreshRunnable)
+        mainHandler.removeCallbacks(rockAntenneRefreshRunnable)
     }
 
     private fun hasExceededMediaDuration(info: MediaInfo, state: PlaybackState): Boolean {
@@ -496,6 +512,7 @@ object MediaBridgeSessionManager {
             .coerceAtLeast(MIN_END_OF_MEDIA_REFRESH_DELAY_MS)
     }
 
+    private const val ROCK_ANTENNE_REFRESH_INTERVAL_MS = 5_000L
     private const val SOURCE_CALLBACK_REFRESH_DELAY_MS = 250L
     private const val END_OF_MEDIA_REFRESH_GRACE_MS = 1_000L
     private const val MIN_END_OF_MEDIA_REFRESH_DELAY_MS = 1_000L

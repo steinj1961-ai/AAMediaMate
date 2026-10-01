@@ -41,7 +41,15 @@ class LyricDisplayManager(
         }
         currentLyricsJob = lyricsScope.launch {
             try {
-                val lyrics = LyricCache.getOrFetchLyrics(context, info.title, info.artist, info.duration.toString())
+                var lyrics = LyricCache.getOrFetchLyrics(context, info.title, info.artist, info.duration.toString())
+                var retryCount = 0
+                while (lyrics.isEmpty() && retryCount < 5) {
+                    delay(5_000L)
+                    ensureActive()
+                    if (requestGeneration != generation) return@launch
+                    lyrics = LyricCache.getOrFetchLyrics(context, info.title, info.artist, info.duration.toString())
+                    retryCount++
+                }
                 ensureActive()
                 if (requestGeneration != generation) return@launch
                 if (lyrics.isEmpty()) {
