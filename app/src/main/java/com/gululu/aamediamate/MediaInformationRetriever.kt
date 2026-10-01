@@ -21,6 +21,25 @@ object MediaInformationRetriever {
     private val iconMap = mutableMapOf<String, Bitmap?>()
     internal val labelMap = mutableMapOf<String, String>()
 
+    private fun normalizeRockAntenne(title: String, artist: String): Pair<String, String> {
+        if (title.equals("ROCK ANTENNE", ignoreCase = true)) {
+            val parts = artist.split(" - ", limit = 2)
+            if (parts.size == 2) {
+                val normalizedTitle = parts[1]
+                .replace(
+                    Regex(
+                        """\s*-\s*ROCK ANTENNE(?:\s+Live)?\s*$""",
+                        RegexOption.IGNORE_CASE
+                    ),
+                    ""
+                )
+                .trim()
+            return normalizedTitle to parts[0].trim()
+            }
+        }
+        return title to artist
+    }
+
     fun refreshCurrentMediaInfo(context: Context): MediaInfo? {
         try {
             val controller = MediaControllerManager.getFirstController(context) ?: return null
@@ -37,12 +56,16 @@ object MediaInformationRetriever {
                 albumArt = composeAlbumArtWithAppIconFixed(albumArt, appIcon)
             }
 
+            val rawTitle = metadata.getString(MediaMetadata.METADATA_KEY_TITLE) ?: context.getString(R.string.unknown_title)
+            val rawArtist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)?.takeIf { it.isNotBlank() } ?: ""
+            val (normalizedTitle, normalizedArtist) = normalizeRockAntenne(rawTitle, rawArtist)
+
             val mediaInfo = MediaInfo(
                 appPackageName = controller.packageName,
                 appIcon = appIcon,
                 appName = getAppLabel(context, controller.packageName),
-                title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE) ?: context.getString(R.string.unknown_title),
-                artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)?.takeIf { it.isNotBlank() } ?: "",
+                title = normalizedTitle,
+                artist = normalizedArtist,
                 album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM)?.takeIf { it.isNotBlank() } ?: "",
                 duration = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION),
                 position = getCurrentPositionMs(state, retrievedAtMs),
@@ -97,12 +120,16 @@ object MediaInformationRetriever {
             albumArt = composeAlbumArtWithAppIconFixed(albumArt, appIcon)
         }
 
+        val rawTitle = metadata.getString(MediaMetadata.METADATA_KEY_TITLE) ?: context.getString(R.string.unknown_title)
+        val rawArtist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)?.takeIf { it.isNotBlank() } ?: ""
+        val (normalizedTitle, normalizedArtist) = normalizeRockAntenne(rawTitle, rawArtist)
+
         return MediaInfo(
             appPackageName = controller.packageName,
             appIcon = appIcon,
             appName = getAppLabel(context, controller.packageName),
-            title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE) ?: context.getString(R.string.unknown_title),
-            artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST)?.takeIf { it.isNotBlank() } ?: "",
+            title = normalizedTitle,
+            artist = normalizedArtist,
             album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM)?.takeIf { it.isNotBlank() } ?: "",
             duration = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION),
             position = getCurrentPositionMs(state, retrievedAtMs),
