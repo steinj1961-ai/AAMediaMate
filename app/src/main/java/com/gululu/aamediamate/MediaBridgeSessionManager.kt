@@ -171,7 +171,16 @@ object MediaBridgeSessionManager {
             lyricDisplayManager?.stop()
         }
         mediaStateUpdater?.update(session, normalizedInfo)
-        lyricDisplayManager?.start(session, normalizedInfo)
+
+        // Do not restart/cancel the lyric job on every 5-second polling refresh.
+        // Start it only when the actual track changes (or an explicit resync is requested).
+        val trackChanged = previousInfo == null ||
+            previousInfo.appPackageName != normalizedInfo.appPackageName ||
+            previousInfo.title != normalizedInfo.title ||
+            previousInfo.artist != normalizedInfo.artist
+        if (trackChanged || forceLyricsResync) {
+            lyricDisplayManager?.start(session, normalizedInfo)
+        }
 
         mediaInfoListener?.invoke(normalizedInfo)
         scheduleEndOfMediaRefresh(normalizedInfo)
