@@ -41,15 +41,20 @@ class LyricDisplayManager(
         }
         currentLyricsJob = lyricsScope.launch {
             try {
-                var lyrics = LyricCache.getOrFetchLyrics(context, info.title, info.artist, info.duration.toString())
+                // Use exactly the LRCLib search path that succeeds in Manual Lyrics Search.
+                val lrclib = com.gululu.aamediamate.lyrics.providers.LRCLibProvider
+                var lrcText = lrclib.getLyricsLrc(context, info.title, info.artist, "")
                 var retryCount = 0
-                while (lyrics.isEmpty() && retryCount < 5) {
+                while (lrcText.isNullOrBlank() && retryCount < 5) {
                     delay(5_000L)
                     ensureActive()
                     if (requestGeneration != generation) return@launch
-                    lyrics = LyricCache.getOrFetchLyrics(context, info.title, info.artist, info.duration.toString())
+                    lrcText = lrclib.getLyricsLrc(context, info.title, info.artist, "")
                     retryCount++
                 }
+                val lyrics = lrcText
+                    ?.let { com.gululu.aamediamate.lyrics.LyricsManager.parseLrc(context, it) }
+                    .orEmpty()
                 ensureActive()
                 if (requestGeneration != generation) return@launch
                 if (lyrics.isEmpty()) {
