@@ -41,27 +41,28 @@ class LyricDisplayManager(
         }
         currentLyricsJob = lyricsScope.launch {
             try {
-                // Use exactly the LRCLib search path that succeeds in Manual Lyrics Search.
-                val lrclib = com.gululu.aamediamate.lyrics.providers.LRCLibProvider
-                var lrcText = lrclib.getLyricsLrc(context, info.title, info.artist, "")
+                var lyrics = LyricCache.getOrFetchLyrics(context, info.title, info.artist, info.duration.toString())
                 var retryCount = 0
-                while (lrcText.isNullOrBlank() && retryCount < 5) {
+                while (lyrics.isEmpty() && retryCount < 5) {
                     delay(5_000L)
                     ensureActive()
                     if (requestGeneration != generation) return@launch
-                    lrcText = lrclib.getLyricsLrc(context, info.title, info.artist, "")
+                    lyrics = LyricCache.getOrFetchLyrics(context, info.title, info.artist, info.duration.toString())
                     retryCount++
                 }
-                val lyrics = lrcText
-                    ?.let { com.gululu.aamediamate.lyrics.LyricsManager.parseLrc(context, it) }
-                    .orEmpty()
                 ensureActive()
                 if (requestGeneration != generation) return@launch
                 if (lyrics.isEmpty()) {
                     updateLyricLine(mediaSession, info, "", null)
                     return@launch
                 }
-                val position = MediaInformationRetriever.getEstimatedPositionMs(info)
+                // Radio streams expose the stream/session position, not the start
+                // position of the newly announced song. The metadata change marks
+                // the song start, so synced lyrics must start at 0 here.
+                val position = if (
+                    info.appName.contains("ROCK ANTENNE", ignoreCase = true) ||
+                    info.title.contains("ROCK ANTENNE", ignoreCase = true)
+                ) 0L else MediaInformationRetriever.getEstimatedPositionMs(info)
                 val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
                 wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AAMediaMate:LyricSync")?.apply {
                     setReferenceCounted(false)
