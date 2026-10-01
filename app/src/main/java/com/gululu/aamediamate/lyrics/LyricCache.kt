@@ -68,7 +68,9 @@ object LyricCache {
         val content = synchronized(memoryCache) { memoryCache[file.absolutePath] } ?: LyricsStorage.read(file)
         if (content.isEmpty()) {
             val metadata = LyricsStorage.metadata(context, key)
-            if (!metadata.optBoolean("manual") && metadata.optLong("retryAfter") <= System.currentTimeMillis()) return null
+            // Automatic misses must be retried. Radio metadata can become usable
+            // shortly after the first request, so do not cache an empty result.
+            if (!metadata.optBoolean("manual")) return null
         }
         synchronized(memoryCache) { memoryCache[file.absolutePath] = content }
         file.setLastModified(System.currentTimeMillis())
