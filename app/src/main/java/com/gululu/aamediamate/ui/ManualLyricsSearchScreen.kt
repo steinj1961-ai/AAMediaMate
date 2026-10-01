@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.gululu.aamediamate.R
+import com.gululu.aamediamate.MediaInformationRetriever
 import com.gululu.aamediamate.SettingsManager
 import com.gululu.aamediamate.data.LyricsProviderConfig
 import com.gululu.aamediamate.lyrics.LyricsRepository
@@ -38,8 +39,16 @@ fun ManualLyricsSearchScreen(
     LaunchedEffect(lyricsKey) {
         try {
             val identity = LyricsRepository.identity(context, lyricsKey)
-            title = identity.first
-            artist = identity.second
+            val isHashedFallback = identity.first == "v2" &&
+                identity.second.matches(Regex("^[0-9a-fA-F]{64}$"))
+            if (isHashedFallback) {
+                val current = MediaInformationRetriever.refreshCurrentMediaInfo(context)
+                title = current?.title.orEmpty()
+                artist = current?.artist.orEmpty()
+            } else {
+                title = identity.first
+                artist = identity.second
+            }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) { Toast.makeText(context, e.localizedMessage, Toast.LENGTH_LONG).show() }
     }
