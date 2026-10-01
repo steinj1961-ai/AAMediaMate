@@ -106,6 +106,13 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (::billingManager.isInitialized) billingManager.refreshPurchases()
+
+        // The normal phone UI must initialize the bridge too; previously the
+        // MediaBrowserService could be the first component to do this.
+        MediaBridgeSessionManager.init(applicationContext)
+        MediaBridgeSessionManager.updateFromMediaInfo(
+            MediaInformationRetriever.refreshCurrentMediaInfo(applicationContext)
+        )
     }
 
     override fun onDestroy() {
